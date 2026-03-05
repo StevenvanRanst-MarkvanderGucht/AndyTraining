@@ -6,99 +6,76 @@
     <title>Andy Training</title>
     <style>
         body { margin: 0; background-color: red; color: yellow; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; text-align: center; }
-        #action { font-size: 12vw; font-weight: bold; margin-bottom: 10px; }
+        #action { font-size: 12vw; font-weight: bold; }
         #timer { font-size: 25vw; font-weight: bold; }
-        button { padding: 20px 30px; font-size: 20px; font-weight: bold; cursor: pointer; border: none; border-radius: 10px; background: white; color: red; margin: 10px; }
+        button { padding: 25px 35px; font-size: 22px; font-weight: bold; cursor: pointer; border: none; border-radius: 15px; background: white; color: red; margin: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        #debug { position: absolute; bottom: 10px; font-size: 12px; color: white; width: 90%; word-wrap: break-word; }
     </style>
 </head>
 <body>
     <div id="action">ANDY TRAINING</div>
-    <div id="timer">MAAK EEN KEUZE</div>
+    <div id="timer">KLIK START</div>
     <div id="menu">
         <button onclick="startApp(false)">START MET SONG</button>
         <button onclick="startApp(true)">SNELSTART (20s)</button>
     </div>
+    <div id="debug" id="status"></div>
 
     <script>
-        const audioPath = ""; // Hier stond eerst const const, nu is het juist.
+        // We proberen het bestand direct te laden omdat ze los in je lijst staan
         const sounds = {};
-        let queue = [];
-        let currentInterval;
+        const audioFiles = {
+            intro: "naamloos.wav",
+            start: "START.mp3",
+            stop: "stop 0.555 sec.mp3",
+            finish: "aftellen 1 naar 1.mp3"
+        };
 
-        function loadSounds() {
-            // Namen komen exact overeen met je GitHub lijst [cite: 31, 34, 37, 40, 63, 66]
-            const files = {
-                intro: "naamloos.wav",
-                start: "START.mp3",
-                stop: "stop 0.555 sec.mp3",
-                finish: "aftellen 1 naar 1.mp3"
-            };
-            for (let key in files) { sounds[key] = new Audio(audioPath + files[key]); }
+        function loadAll() {
+            for (let key in audioFiles) {
+                sounds[key] = new Audio(audioFiles[key]);
+                sounds[key].onerror = () => document.getElementById('debug').innerText += " Fout: " + audioFiles[key];
+            }
             for (let i = 2; i <= 10; i++) {
-                // Regel voor aftellen5 zonder spatie [cite: 60]
-                let fname = (i === 5) ? "aftellen5 naar 1.mp3" : `aftellen ${i} naar 1.mp3`;
-                sounds[`count${i}`] = new Audio(audioPath + fname);
+                let name = (i === 5) ? "aftellen5 naar 1.mp3" : `aftellen ${i} naar 1.mp3`;
+                sounds[`count${i}`] = new Audio(name);
+                sounds[`count${i}`].onerror = () => document.getElementById('debug').innerText += " Fout: " + name;
             }
         }
-        loadSounds();
+        loadAll();
 
         function startApp(skip) {
             document.getElementById('menu').style.display = 'none';
-            // Audio unlocken voor mobiel
-            Object.values(sounds).forEach(s => { s.play(); s.pause(); s.currentTime = 0; });
             
-            let introDur = 20;
+            // CRUCIAAL VOOR SMARTPHONE: Alle geluiden 'aanraken'
+            Object.values(sounds).forEach(s => {
+                s.play().then(() => { s.pause(); s.currentTime = 0; }).catch(e => {});
+            });
+
+            let dur = 20;
             if (!skip) {
-                sounds.intro.play();
-                introDur = 180; 
-                sounds.intro.onloadedmetadata = () => { introDur = Math.floor(sounds.intro.duration); };
+                sounds.intro.play().catch(e => document.getElementById('debug').innerText = "Song blokkeert");
+                dur = 180;
             }
-            buildQueue(introDur);
-            runCycle();
-        }
-
-        function buildQueue(introDur) {
-            queue.push({action: "WACHT", color: "red", dur: introDur});
-            for(let i=0; i<6; i++) { addSet(20, 10); }
-            for(let i=15; i>=3; i--) { addSet(i, i); }
-            for(let i=3; i<=15; i++) { addSet(i, i); }
-            for(let i=0; i<12; i++) { addSet(Math.floor(Math.random()*13)+3, Math.floor(Math.random()*13)+3); }
-        }
-
-        function addSet(sDur, pDur) {
-            queue.push({action: "START", color: "green", dur: sDur});
-            queue.push({action: "STOP", color: "red", dur: pDur});
-            if (Math.random() < 0.25) {
-                queue.push({action: "START", color: "green", dur: Math.floor(Math.random()*11)+20});
-                queue.push({action: "STOP", color: "red", dur: 10});
-            }
-        }
-
-        function runCycle() {
-            if (queue.length === 0) { addSet(7, 6); }
-            const step = queue.shift();
-            let timeLeft = step.dur;
-            document.body.style.backgroundColor = step.color;
-            document.body.style.color = (step.color === 'red') ? 'yellow' : 'black';
-            document.getElementById('action').innerText = step.action;
-
-            if (step.action !== "WACHT") {
-                if (step.action === "START") sounds.start.play();
-                else sounds.stop.play();
-            }
-
-            if (currentInterval) clearInterval(currentInterval);
-            currentInterval = setInterval(() => {
-                document.getElementById('timer').innerText = timeLeft;
-                if (step.action !== "WACHT") {
-                    if (timeLeft <= 10 && timeLeft > 1) {
-                        if (sounds[`count${timeLeft}`]) sounds[`count${timeLeft}`].play();
-                    }
-                    if (timeLeft === 1) sounds.finish.play();
+            
+            document.getElementById('action').innerText = "WACHT";
+            let timer = dur;
+            let introInterval = setInterval(() => {
+                document.getElementById('timer').innerText = timer;
+                if (timer <= 0) {
+                    clearInterval(introInterval);
+                    beginCycle();
                 }
-                if (timeLeft <= 0) { clearInterval(currentInterval); runCycle(); }
-                timeLeft--;
+                timer--;
             }, 1000);
+        }
+
+        function beginCycle() {
+            document.body.style.backgroundColor = "green";
+            document.body.style.color = "black";
+            document.getElementById('action').innerText = "START";
+            sounds.start.play();
+            // Voor de test laten we hem nu even hier, als dit werkt voegen we de rest toe
         }
     </script>
 </body>
