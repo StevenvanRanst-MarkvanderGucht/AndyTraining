@@ -6,76 +6,85 @@
     <title>Andy Training</title>
     <style>
         body { margin: 0; background-color: red; color: yellow; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; text-align: center; }
-        #action { font-size: 12vw; font-weight: bold; }
+        #action { font-size: 12vw; font-weight: bold; margin-bottom: 10px; }
         #timer { font-size: 25vw; font-weight: bold; }
-        button { padding: 25px 35px; font-size: 22px; font-weight: bold; cursor: pointer; border: none; border-radius: 15px; background: white; color: red; margin: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-        #debug { position: absolute; bottom: 10px; font-size: 12px; color: white; width: 90%; word-wrap: break-word; }
+        button { padding: 20px 30px; font-size: 20px; font-weight: bold; cursor: pointer; border: none; border-radius: 10px; background: white; color: red; margin: 10px; }
+        #debug { position: absolute; bottom: 5px; font-size: 10px; color: white; }
     </style>
 </head>
 <body>
     <div id="action">ANDY TRAINING</div>
-    <div id="timer">KLIK START</div>
+    <div id="timer">KIES START</div>
     <div id="menu">
         <button onclick="startApp(false)">START MET SONG</button>
         <button onclick="startApp(true)">SNELSTART (20s)</button>
     </div>
-    <div id="debug" id="status"></div>
+    <div id="debug"></div>
 
     <script>
-        // We proberen het bestand direct te laden omdat ze los in je lijst staan
+        // Omdat de bestanden los staan in je lijst, laten we het pad leeg
         const sounds = {};
-        const audioFiles = {
-            intro: "naamloos.wav",
-            start: "START.mp3",
-            stop: "stop 0.555 sec.mp3",
-            finish: "aftellen 1 naar 1.mp3"
-        };
+        
+        function loadSounds() {
+            const files = {
+                intro: "naamloos.wav",
+                start: "START.mp3",
+                stop: "stop 0.555 sec.mp3",
+                finish: "aftellen 1 naar 1.mp3"
+            };
 
-        function loadAll() {
-            for (let key in audioFiles) {
-                sounds[key] = new Audio(audioFiles[key]);
-                sounds[key].onerror = () => document.getElementById('debug').innerText += " Fout: " + audioFiles[key];
+            for (let key in files) {
+                sounds[key] = new Audio(files[key]);
+                // Foutzoeker
+                sounds[key].onerror = () => { 
+                    document.getElementById('debug').innerText += " ! " + files[key];
+                };
             }
+
             for (let i = 2; i <= 10; i++) {
-                let name = (i === 5) ? "aftellen5 naar 1.mp3" : `aftellen ${i} naar 1.mp3`;
-                sounds[`count${i}`] = new Audio(name);
-                sounds[`count${i}`].onerror = () => document.getElementById('debug').innerText += " Fout: " + name;
+                let fname = (i === 5) ? "aftellen5 naar 1.mp3" : `aftellen ${i} naar 1.mp3`;
+                sounds[`count${i}`] = new Audio(fname);
+                sounds[`count${i}`].onerror = () => {
+                    document.getElementById('debug').innerText += " ! " + fname;
+                };
             }
         }
-        loadAll();
+        
+        loadSounds();
 
         function startApp(skip) {
             document.getElementById('menu').style.display = 'none';
             
-            // CRUCIAAL VOOR SMARTPHONE: Alle geluiden 'aanraken'
+            // Audio unlock voor smartphones
             Object.values(sounds).forEach(s => {
-                s.play().then(() => { s.pause(); s.currentTime = 0; }).catch(e => {});
+                s.play().then(() => { s.pause(); s.currentTime = 0; }).catch(() => {});
             });
 
-            let dur = 20;
+            let waitTime = 20; // Snelstart
             if (!skip) {
-                sounds.intro.play().catch(e => document.getElementById('debug').innerText = "Song blokkeert");
-                dur = 180;
+                sounds.intro.play();
+                waitTime = 180; // Song
             }
-            
+
             document.getElementById('action').innerText = "WACHT";
-            let timer = dur;
-            let introInterval = setInterval(() => {
-                document.getElementById('timer').innerText = timer;
-                if (timer <= 0) {
-                    clearInterval(introInterval);
-                    beginCycle();
+            let remaining = waitTime;
+
+            const countdown = setInterval(() => {
+                document.getElementById('timer').innerText = remaining;
+                if (remaining <= 0) {
+                    clearInterval(countdown);
+                    beginTraining();
                 }
-                timer--;
+                remaining--;
             }, 1000);
         }
 
-        function beginCycle() {
+        function beginTraining() {
             document.body.style.backgroundColor = "green";
             document.body.style.color = "black";
             document.getElementById('action').innerText = "START";
             sounds.start.play();
-            // Voor de test laten we hem nu even hier, als dit werkt voegen we de rest toe
+            // Voor nu laten we hem hier; als dit geluid geeft, vullen we de rest aan
         }
     </script>
 </body>
